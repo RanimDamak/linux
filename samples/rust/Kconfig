@@ -163,4 +163,11 @@ config SAMPLE_RUST_SELFTESTS
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_SCULL
+	tristate "Rust Scull"
+	help
+	  This option builds the rust scull module.
+
+	  If unsure, say N.
+
 endif # SAMPLES_RUST
