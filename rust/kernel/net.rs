@@ -177,6 +177,10 @@ impl Ipv6Addr {
     }
 }
 
+#[repr(transparent)]
+#[derive(Copy, Clone, Default)]
+pub struct SocketAddrStorage(bindings::__kernel_sockaddr_storage);
+
 /// A socket address.
 ///
 /// It's an enum with either an IPv4 or IPv6 socket address.
@@ -186,6 +190,23 @@ pub enum SocketAddr {
 
     /// An IPv6 socket address.
     V6(SocketAddrV6),
+}
+
+impl SocketAddr {
+
+    pub fn as_ptr(&self) -> *const SocketAddrStorage {
+        match self {
+            SocketAddr::V4(addr) => addr as *const _ as _,
+            SocketAddr::V6(addr) => addr as *const _ as _,
+        }
+    }
+    pub fn size(&self) -> usize {
+        match self {
+            SocketAddr::V4(_) => SocketAddrV4::size(),
+            SocketAddr::V6(_) => SocketAddrV6::size(),
+        }
+    }
+
 }
 
 /// An IPv4 socket address.
@@ -203,6 +224,12 @@ impl SocketAddrV4 {
             sin_addr: addr.0,
             __pad: [0; 8],
         })
+    }
+    pub fn size() -> usize
+    where
+        Self: Sized,
+    {
+        core::mem::size_of::<Self>()
     }
 }
 
@@ -222,6 +249,12 @@ impl SocketAddrV6 {
             sin6_flowinfo: flowinfo,
             sin6_scope_id: scopeid,
         })
+    }
+    pub fn size() -> usize
+    where
+        Self: Sized,
+    {
+        core::mem::size_of::<Self>()
     }
 }
 
@@ -313,7 +346,7 @@ impl Drop for TcpListener {
 ///
 /// The socket pointer is always non-null and valid.
 pub struct TcpStream {
-    pub(crate) sock: *mut bindings::socket,
+    pub sock: *mut bindings::socket,
 }
 
 // SAFETY: `TcpStream` is just a wrapper for a kernel socket, which can be used from any thread.
@@ -388,5 +421,272 @@ impl Drop for TcpStream {
     fn drop(&mut self) {
         // SAFETY: The type invariant guarantees that the socket is valid.
         unsafe { bindings::sock_release(self.sock) };
+    }
+}
+
+pub enum SockType {
+    /// Stream socket (e.g. TCP)
+    Stream = bindings::sock_type_SOCK_STREAM as isize,
+    /// Connectionless socket (e.g. UDP)
+    Datagram = bindings::sock_type_SOCK_DGRAM as isize,
+    /// Raw socket
+    Raw = bindings::sock_type_SOCK_RAW as isize,
+    /// Reliably-delivered message
+    Rdm = bindings::sock_type_SOCK_RDM as isize,
+    /// Sequenced packet stream
+    Seqpacket = bindings::sock_type_SOCK_SEQPACKET as isize,
+    /// Datagram Congestion Control Protocol socket
+    Dccp = bindings::sock_type_SOCK_DCCP as isize,
+    /// Packet socket
+    Packet = bindings::sock_type_SOCK_PACKET as isize,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum IpProtocol {
+    /// Dummy protocol for TCP
+    Ip = bindings::IPPROTO_IP as isize,
+    /// Internet Control Message Protocol
+    Icmp = bindings::IPPROTO_ICMP as isize,
+    /// Internet Group Management Protocol
+    Igmp = bindings::IPPROTO_IGMP as isize,
+    /// IPIP tunnels (older KA9Q tunnels use 94)
+    IpIp = bindings::IPPROTO_IPIP as isize,
+    /// Transmission Control Protocol
+    Tcp = bindings::IPPROTO_TCP as isize,
+    /// Exterior Gateway Protocol
+    Egp = bindings::IPPROTO_EGP as isize,
+    /// PUP protocol
+    Pup = bindings::IPPROTO_PUP as isize,
+    /// User Datagram Protocol
+    Udp = bindings::IPPROTO_UDP as isize,
+    /// XNS Idp protocol
+    Idp = bindings::IPPROTO_IDP as isize,
+    /// SO Transport Protocol Class 4
+    Tp = bindings::IPPROTO_TP as isize,
+    /// Datagram Congestion Control Protocol
+    Dccp = bindings::IPPROTO_DCCP as isize,
+    /// Ipv6-in-Ipv4 tunnelling
+    Ipv6 = bindings::IPPROTO_IPV6 as isize,
+    /// Rsvp Protocol
+    Rsvp = bindings::IPPROTO_RSVP as isize,
+    /// Cisco GRE tunnels (rfc 1701,1702)
+    Gre = bindings::IPPROTO_GRE as isize,
+    /// Encapsulation Security Payload protocol
+    Esp = bindings::IPPROTO_ESP as isize,
+    /// Authentication Header protocol
+    Ah = bindings::IPPROTO_AH as isize,
+    /// Multicast Transport Protocol
+    Mtp = bindings::IPPROTO_MTP as isize,
+    /// Ip option pseudo header for BEET
+    Beetph = bindings::IPPROTO_BEETPH as isize,
+    /// Encapsulation Header
+    Encap = bindings::IPPROTO_ENCAP as isize,
+    /// Protocol Independent Multicast
+    Pim = bindings::IPPROTO_PIM as isize,
+    /// Compression Header Protocol
+    Comp = bindings::IPPROTO_COMP as isize,
+    /// Layer 2 Tunnelling Protocol
+    L2Tp = bindings::IPPROTO_L2TP as isize,
+    /// Stream Control Transport Protocol
+    Sctp = bindings::IPPROTO_SCTP as isize,
+    /// Udp-Lite (Rfc 3828)
+    UdpLite = bindings::IPPROTO_UDPLITE as isize,
+    /// Mpls in Ip (Rfc 4023)
+    Mpls = bindings::IPPROTO_MPLS as isize,
+    /// Ethernet-within-Ipv6 Encapsulation
+    Ethernet = bindings::IPPROTO_ETHERNET as isize,
+    /// Raw Ip packets
+    Raw = bindings::IPPROTO_RAW as isize,
+    /// Multipath Tcp connection
+    Mptcp = bindings::IPPROTO_MPTCP as isize,
+}
+
+
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum AddressFamily {
+    /// Unspecified address family.
+    Unspec = bindings::AF_UNSPEC as isize,
+    /// Local to host (pipes and file-domain).
+    Unix = bindings::AF_UNIX as isize,
+    /// Internetwork: UDP, TCP, etc.
+    Inet = bindings::AF_INET as isize,
+    /// Amateur radio AX.25.
+    Ax25 = bindings::AF_AX25 as isize,
+    /// IPX.
+    Ipx = bindings::AF_IPX as isize,
+    /// Appletalk DDP.
+    Appletalk = bindings::AF_APPLETALK as isize,
+    /// AX.25 packet layer protocol.
+    Netrom = bindings::AF_NETROM as isize,
+    /// Bridge link.
+    Bridge = bindings::AF_BRIDGE as isize,
+    /// ATM PVCs.
+    Atmpvc = bindings::AF_ATMPVC as isize,
+    /// X.25 (ISO-8208).
+    X25 = bindings::AF_X25 as isize,
+    /// IPv6.
+    Inet6 = bindings::AF_INET6 as isize,
+    /// ROSE protocol.
+    Rose = bindings::AF_ROSE as isize,
+    /// DECnet protocol.
+    Decnet = bindings::AF_DECnet as isize,
+    /// 802.2LLC project.
+    Netbeui = bindings::AF_NETBEUI as isize,
+    /// Firewall hooks.
+    Security = bindings::AF_SECURITY as isize,
+    /// Key management protocol.
+    Key = bindings::AF_KEY as isize,
+    /// Netlink.
+    Netlink = bindings::AF_NETLINK as isize,
+    /// Low-level packet interface.
+    Packet = bindings::AF_PACKET as isize,
+    /// Acorn Econet protocol.
+    Econet = bindings::AF_ECONET as isize,
+    /// ATM SVCs.
+    Atmsvc = bindings::AF_ATMSVC as isize,
+    /// RDS sockets.
+    Rds = bindings::AF_RDS as isize,
+    /// IRDA sockets.
+    Irda = bindings::AF_IRDA as isize,
+    /// Generic PPP.
+    Pppox = bindings::AF_PPPOX as isize,
+    /// Legacy WAN networks protocol.
+    Wanpipe = bindings::AF_WANPIPE as isize,
+    /// LLC protocol.
+    Llc = bindings::AF_LLC as isize,
+    /// Infiniband.
+    Ib = bindings::AF_IB as isize,
+    /// Multiprotocol label switching.
+    Mpls = bindings::AF_MPLS as isize,
+    /// Controller Area Network.
+    Can = bindings::AF_CAN as isize,
+    /// TIPC sockets.
+    Tipc = bindings::AF_TIPC as isize,
+    /// Bluetooth sockets.
+    Bluetooth = bindings::AF_BLUETOOTH as isize,
+    /// IUCV sockets.
+    Iucv = bindings::AF_IUCV as isize,
+    /// RxRPC sockets.
+    Rxrpc = bindings::AF_RXRPC as isize,
+    /// Modular ISDN protocol.
+    Isdn = bindings::AF_ISDN as isize,
+    /// Nokia cellular modem interface.
+    Phonet = bindings::AF_PHONET as isize,
+    /// IEEE 802.15.4 sockets.
+    Ieee802154 = bindings::AF_IEEE802154 as isize,
+    /// CAIF sockets.
+    Caif = bindings::AF_CAIF as isize,
+    /// Kernel crypto API
+    Alg = bindings::AF_ALG as isize,
+    /// VMware VSockets.
+    Vsock = bindings::AF_VSOCK as isize,
+    /// KCM sockets.
+    Kcm = bindings::AF_KCM as isize,
+    /// Qualcomm IPC router protocol.
+    Qipcrtr = bindings::AF_QIPCRTR as isize,
+    /// SMC sockets.
+    Smc = bindings::AF_SMC as isize,
+    /// Express Data Path sockets.
+    Xdp = bindings::AF_XDP as isize,
+}
+
+pub struct Socket(*mut bindings::socket);
+
+impl Socket {
+    /// Retrieve the flags associated with the socket.
+    ///
+    /// Unfortunately, these flags cannot be represented as a [`FlagSet`], since [`SocketFlag`]s
+    /// are not represented as masks but as the index of the bit they represent.
+    ///
+    /// An enum could be created, containing masks instead of indexes, but this could create
+    /// confusion with the C side.
+    ///
+    /// The methods [`Socket::has_flag`] and [`Socket::set_flags`] can be used to check and set individual flags.
+    pub fn flags(&self) -> u64 {
+        unsafe { (*self.0).flags }
+    }
+
+    /// Set the flags associated with the socket.
+    pub fn set_flags(&self, flags: u64) {
+        unsafe {
+            (*self.0).flags = flags;
+        }
+    }
+
+
+    /// Consumes the socket and returns the underlying pointer.
+    ///
+    /// The pointer is valid for the lifetime of the wrapper.
+    ///
+    /// # Safety
+    /// The caller must ensure that the pointer is not used after the wrapper is dropped.
+    pub unsafe fn into_inner(self) -> *mut bindings::socket {
+        self.0
+    }
+
+    /// Returns the underlying pointer.
+    ///
+    /// The pointer is valid for the lifetime of the wrapper.
+    ///
+    /// # Safety
+    /// The caller must ensure that the pointer is not used after the wrapper is dropped.
+    pub unsafe fn as_inner(&self) -> *mut bindings::socket {
+        self.0
+    }
+}
+
+
+// Socket API implementation
+impl Socket {
+    /// Private utility function to create a new socket by calling a function.
+    /// The function is generic over the creation function.
+    ///
+    /// # Arguments
+    /// * `create_fn`: A function that initiates the socket given as parameter.
+    ///                The function must return 0 on success and a negative error code on failure.
+    fn base_new<T>(create_fn: T) -> Result<Self>
+    where
+        T: (FnOnce(*mut *mut bindings::socket) -> core::ffi::c_int),
+    {
+        let mut socket_ptr: *mut bindings::socket = core::ptr::null_mut();
+        to_result(create_fn(&mut socket_ptr))?;
+        Ok(Self(socket_ptr))
+    }
+
+    pub fn new(family: AddressFamily, type_: SockType, proto: IpProtocol) -> Result<Self> {
+        // SAFETY: FFI call; the address is valid for the lifetime of the wrapper.
+        Self::base_new(|socket_ptr| unsafe {
+            bindings::sock_create(family as _, type_ as _, proto as _, socket_ptr)
+        })
+    }
+
+
+    pub fn connect(&self, address: &SocketAddr, flags: i32) -> Result {
+        // SAFETY: FFI call; the address is valid for the lifetime of the wrapper.
+        unsafe {
+            to_result(bindings::kernel_connect(
+                self.0,
+                address.as_ptr() as _,
+                address.size() as _,
+                flags,
+            ))
+        }
+    }
+
+    
+    /// Create a new socket in a specific namespace.
+    ///
+    /// Wraps the `sock_create_kern` function.
+    pub fn new_kern(
+        ns: &Namespace,
+        family: AddressFamily,
+        type_: SockType,
+        proto: IpProtocol,
+    ) -> Result<Self> {
+        // SAFETY: FFI call; the address is valid for the lifetime of the wrapper.
+        Self::base_new(|socket_ptr| unsafe {
+            bindings::sock_create_kern(ns.0.get(), family as _, type_ as _, proto as _, socket_ptr)
+        })
     }
 }

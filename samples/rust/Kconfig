@@ -139,13 +139,13 @@ config SAMPLE_RUST_NETFILTER
 
 	  If unsure, say N.
 
-config SAMPLE_RUST_ECHO_SERVER
-	tristate "Echo server module"
+config SAMPLE_RUST_ECU_SERVER
+	tristate "ECU Server module"
 	help
 	  This option builds the Rust echo server  module sample.
 
 	  To compile this as a module, choose M here:
-	  the module will be called rust_echo_server.
+	  the module will be called rust_ecu_server.
 
 	  If unsure, say N.
 
@@ -163,8 +163,8 @@ config SAMPLE_RUST_SELFTESTS
 
 	  If unsure, say N.
 
-config SAMPLE_RUST_SCULL
-	tristate "Rust Scull"
+config SAMPLE_RUST_OBD2
+	tristate "Rust obd2"
 	help
 	  This option builds the rust scull module.
 

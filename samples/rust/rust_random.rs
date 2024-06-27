@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+ // SPDX-License-Identifier: GPL-2.0
 
 //! Rust random device.
 //!
@@ -58,3 +58,5 @@ impl file::Operations for RandomFile {
         Ok(total_len)
     }
 }
+ 
+

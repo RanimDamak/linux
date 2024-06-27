@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+ // SPDX-License-Identifier: GPL-2.0
 
 //! Rust printing macros sample.
 
@@ -52,3 +52,5 @@ impl Drop for RustPrint {
         pr_info!("Rust printing macros sample (exit)\n");
     }
 }
+
+
